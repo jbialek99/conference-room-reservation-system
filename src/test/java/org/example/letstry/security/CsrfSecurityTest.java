@@ -4,10 +4,14 @@ package org.example.letstry.security;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,9 +24,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@WebMvcTest(controllers = CsrfSecurityTest.ProbeController.class)
 @AutoConfigureMockMvc
-@Import(CsrfSecurityTest.ProbeController.class)
+@Import({
+        CsrfSecurityTest.ProbeController.class,
+        CsrfSecurityTest.TestSecurityConfiguration.class
+})
 class CsrfSecurityTest {
 
     @Autowired
@@ -79,6 +86,18 @@ class CsrfSecurityTest {
         @GetMapping("/api/csrf-probe")
         ResponseEntity<Void> getProbe() {
             return ResponseEntity.noContent().build();
+        }
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class TestSecurityConfiguration {
+
+        @Bean
+        SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+            http.authorizeHttpRequests(requests -> requests
+                    .anyRequest().authenticated());
+
+            return http.build();
         }
     }
 }
