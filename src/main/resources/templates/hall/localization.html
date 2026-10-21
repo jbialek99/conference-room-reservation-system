@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="pl"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/layout}">
+<head>
+    <title layout:fragment="title">Localization</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="tiles-wrapper">
+        <div class="tiles-grid">
+            <a th:href="@{/here}" class="tile">Obecna lokalizacja</a>
+            <a th:href="@{/other-localization}" class="tile">Inna lokalizacja</a>
+        </div>
+
+        <div class="back-button-under-tiles">
+            <a th:href="@{/home}" class="button-back">Powrót</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

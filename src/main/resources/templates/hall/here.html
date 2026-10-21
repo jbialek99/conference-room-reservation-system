@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/layout}">
+<head>
+    <title layout:fragment="title">Sale w obecnym budynku</title>
+    <link rel="stylesheet" th:href="@{/css/current-localization.css}" layout:fragment="extraCss" />
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="select-container">
+        <h2>Wybierz salę</h2>
+        <label for="hallSelect">Wybierz salę:</label>
+        <select id="hallSelect" onchange="redirectToCalendar()">
+            <option value="">-- Wybierz salę --</option>
+            <option th:each="hall : ${halls}" th:value="${hall.id}"
+                    th:text="${(hall.available ? '✔' : '❌') + '  ' + hall.name + '  (' + hall.capacity + '🚶)'}"
+                    th:classappend="${hall.available ? 'available' : 'unavailable'}"
+                    th:disabled="${!hall.available}">
+            </option>
+        </select>
+    </div>
+
+    <p>Wybrana sala: <span id="selectedHall">Brak wyboru</span></p>
+    <a th:href="@{/localization}" class="return-tile">Powrót</a>
+</div>
+
+<script layout:fragment="extraJs">
+    function redirectToCalendar() {
+        let select = document.getElementById("hallSelect");
+        let hallId = select.value;
+        if (hallId) {
+            window.location.href = "/calendar/" + hallId;
+        }
+    }
+</script>
+</body>
+</html>

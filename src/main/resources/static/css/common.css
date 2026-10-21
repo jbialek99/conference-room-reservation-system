@@ -1,0 +1,346 @@
+/* Reset i podstawy */
+* {
+    box-sizing: border-box;
+}
+
+/* Blokada scrolla i zoomu na mobilkach */
+html, body {
+    overflow: hidden;        /* wyłącza scrollowanie w pionie i poziomie */
+    height: 100vh;           /* pełna wysokość viewportu */
+    touch-action: none;      /* blokuje gesty przesuwania i powiększania */
+    -ms-touch-action: none;  /* dla IE/Edge */
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #4b6cb7, #182848);
+    font-family: Arial, sans-serif;
+    color: white;
+}
+
+/* Styl daty */
+#date {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 18px;
+    font-weight: bold;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+/* Styl powitania na stronie home */
+.welcome-message {
+    text-align: center;
+    font-size: 2rem;
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
+    color: white;
+    margin-top: 2rem;
+    font-weight: 500;
+    background-color: rgba(0, 0, 0, 0.4);
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Wrapper kafelków */
+.tiles-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 60px;
+}
+
+/* Siatka kafelków */
+.tiles-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    width: 600px;
+    max-width: 90vw;
+}
+
+/* Kafelek */
+.tile {
+    flex: 1 1 45%;
+    max-width: 340px;
+    min-width: 260px;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 40px 28px;
+    border-radius: 14px;
+    color: white;
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.3);
+    transition: background-color 0.3s ease;
+}
+
+/* Kontener dla przycisku powrotu */
+.back-button-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.button-back:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* Responsywność na mobilkach */
+@media (max-width: 640px) {
+    .tiles-grid {
+        grid-template-columns: 1fr;
+        width: 90vw;
+    }
+}
+
+.tiles-content {
+    width: 600px;
+    max-width: 90vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tiles-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    margin-top: 60px;
+}
+
+.tiles-grid {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 600px;
+}
+
+.tile {
+    flex: 1 1 45%;
+    max-width: 260px;
+    min-width: 200px;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 30px 20px;
+    border-radius: 12px;
+    color: white;
+    text-align: center;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+    transition: background-color 0.3s ease;
+}
+
+/* Nowy kontener pod kafelkami */
+.back-button-under-tiles {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 600px;
+    margin-top: 30px;
+}
+
+.button-back {
+    width: 160px;
+    padding: 12px 0;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 10px;
+    color: white;
+    text-align: center;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: background-color 0.3s ease;
+    cursor: pointer;
+}
+
+.button-back:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

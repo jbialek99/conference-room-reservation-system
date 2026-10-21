@@ -1,0 +1,87 @@
+body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f0f2f5;
+    margin: 0;
+    padding: 1rem;
+    text-align: center;
+    scroll-behavior: smooth;
+}
+
+h2 {
+    color: #1a1a1a;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+#calendar {
+    max-width: 100%;
+    margin: auto;
+    background: #ffffff;
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    overflow-x: auto;
+}
+
+.fc-toolbar-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.fc-button {
+    background: #0078d4;
+    border: none;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.fc-button:hover {
+    background: #005a9e;
+}
+
+.fc-day-today {
+    background: #e8f0fe !important;
+}
+
+.fc-event {
+    background-color: #2563eb;
+    border: none;
+    color: white;
+    font-size: 0.9rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    white-space: normal;
+    line-height: 1.2;
+}
+
+.return-tile {
+    display: inline-block;
+    margin-top: 1rem;
+    text-decoration: none;
+    color: white;
+    background-color: #0078d4;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+@media (max-width: 768px) {
+    h2 {
+        font-size: 1.2rem;
+    }
+
+    .fc-button {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
+    }
+
+    .return-tile {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.95rem;
+    }
+}

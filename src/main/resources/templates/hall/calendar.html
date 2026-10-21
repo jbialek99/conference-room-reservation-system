@@ -1,0 +1,293 @@
+
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="_csrf" th:content="${_csrf.token}" />
+    <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+    <title>Kalendarz sali</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" />
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 1rem;
+            text-align: center;
+            scroll-behavior: smooth;
+        }
+
+        h2 {
+            color: #1a1a1a;
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        #calendar {
+            max-width: 100%;
+            margin: auto;
+            background: #ffffff;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            overflow-x: auto;
+        }
+
+        .fc-toolbar-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .fc-button {
+            background: #0078d4;
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .fc-button:hover {
+            background: #005a9e;
+        }
+
+        .fc-day-today {
+            background: #e8f0fe !important;
+        }
+
+        .fc-event {
+            background-color: #2563eb;
+            border: none;
+            color: white;
+            font-size: 0.9rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            white-space: normal;
+            line-height: 1.2;
+        }
+
+        .return-tile {
+            display: inline-block;
+            margin-top: 1.5rem;
+            text-decoration: none;
+            color: white;
+            background-color: #0078d4;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            h2 {
+                font-size: 1.3rem;
+            }
+
+            .fc-button {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.85rem;
+            }
+
+            .return-tile {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<h2>Kalendarz rezerwacji sali: <span th:text="${hall.name}">Nazwa sali</span></h2>
+
+<div id="calendar"
+     th:data-hall-id="${hall.id}"
+     th:data-hall-email="${hall.email}"
+     th:data-user-email="${#authentication.getPrincipal().getAttribute('email')}">
+</div>
+
+<a th:href="@{/localization}" class="return-tile">Powrót do listy sal</a>
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const calendarEl = document.getElementById('calendar');
+        const hallId = calendarEl.dataset.hallId;
+        const userEmail = calendarEl.dataset.userEmail;
+
+        const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+
+        async function checkreservationStatus(bookingId) {
+            try {
+                const response = await fetch(`/api/bookings/${bookingId}/status`);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`Błąd HTTP ${response.status}: ${errorText}`);
+                    return { error: `Błąd serwera: ${response.status}` };
+                }
+
+                const contentType = response.headers.get("Content-Type");
+                if (contentType && contentType.includes("application/json")) {
+                    return await response.json();
+                } else {
+                    console.error("Nieprawidłowy typ odpowiedzi lub pusta odpowiedź");
+                    return { error: "Nieprawidłowa odpowiedź serwera" };
+                }
+
+            } catch (error) {
+                console.error("Błąd podczas sprawdzania statusu rezerwacji:", error);
+                return { error: "Błąd sieci lub serwera" };
+            }
+        }
+
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'timeGridWeek',
+            timeZone: 'Europe/Warsaw',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            editable: false,
+            selectable: true,
+            events: `/api/reservations/hall/${hallId}`,
+
+            dateClick: async info => {
+                const now = new Date();
+                const start = new Date(info.date);
+                const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+                if (start < now) {
+                    alert("⛔ Nie można rezerwować w przeszłości.");
+                    return;
+                }
+
+                const title = prompt("Podaj tytuł rezerwacji:");
+                if (!title) return;
+
+                const startIso = start.toISOString();
+                const endIso = end.toISOString();
+
+                const loading = document.createElement("div");
+                loading.textContent = "⏳ Tworzenie rezerwacji... Proszę czekać.";
+                loading.style.position = "fixed";
+                loading.style.top = "20px";
+                loading.style.left = "50%";
+                loading.style.transform = "translateX(-50%)";
+                loading.style.background = "#fff";
+                loading.style.padding = "1rem";
+                loading.style.border = "1px solid #ccc";
+                loading.style.borderRadius = "8px";
+                loading.style.zIndex = "9999";
+                document.body.appendChild(loading);
+
+                try {
+                    const response = await fetch(`/api/reservations/hall/${hallId}/reserve`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            [csrfHeader]: csrfToken
+                        },
+                        body: JSON.stringify({
+                            startMeeting: startIso,
+                            endMeeting: endIso,
+                            title: title
+                        })
+                    });
+
+                    const responseData = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(responseData.error || "Nie udało się utworzyć rezerwacji.");
+                    }
+
+                    const bookingId = responseData.bookingId;
+                    const initialStatus = responseData.status;
+
+                    if (initialStatus === "CONFIRMED") {
+                        document.body.removeChild(loading);
+                        alert("✅ Rezerwacja potwierdzona!");
+                        calendar.refetchEvents();
+                        return;
+                    }
+
+                    let pollInterval = setInterval(async () => {
+                        const result = await checkreservationStatus(bookingId);
+
+                        if (result.error) {
+                            clearInterval(pollInterval);
+                            document.body.removeChild(loading);
+                            alert("❌ Błąd sprawdzania statusu: " + result.error);
+                            return;
+                        }
+
+                        if (result.status === "CONFIRMED") {
+                            clearInterval(pollInterval);
+                            document.body.removeChild(loading);
+                            alert("✅ Rezerwacja potwierdzona!");
+                            calendar.refetchEvents();
+                        } else if (result.status === "DECLINED" || result.status === "REJECTED") {
+                            clearInterval(pollInterval);
+                            document.body.removeChild(loading);
+                            alert("❌ Rezerwacja została odrzucona.");
+                            calendar.refetchEvents();
+                        }
+
+                    }, 3000);
+
+                } catch (error) {
+                    document.body.removeChild(loading);
+                    alert("❌ " + error.message);
+                }
+            },
+
+            eventClick: info => {
+                const eventEmail = info.event.extendedProps.email || "";
+                const isOwner = eventEmail.toLowerCase() === (userEmail || "").toLowerCase();
+
+                if (!isOwner) {
+                    alert("Możesz usunąć tylko swoje wydarzenia.");
+                    return;
+                }
+
+                if (confirm("Czy chcesz usunąć to wydarzenie?")) {
+                    fetch(`/api/reservations/delete/${encodeURIComponent(info.event.id)}`, {
+                        method: 'DELETE',
+                        headers: {
+                            [csrfHeader]: csrfToken
+                        }
+                    })
+                        .then(res => {
+                            if (!res.ok) {
+                                return res.text().then(text => {
+                                    throw new Error(text || "Błąd usuwania wydarzenia.");
+                                });
+                            }
+
+                            info.event.remove();
+                            alert("✅ Usunięto wydarzenie.");
+                        })
+                        .catch(err => alert("❌ " + err.message));
+                }
+            },
+
+            eventDidMount: info => {
+                const tooltip = info.event.extendedProps.tooltip;
+
+                if (tooltip) {
+                    info.el.setAttribute('title', tooltip);
+                }
+            }
+        });
+
+        calendar.render();
+    });
+</script>
+
+</body>
+</html>

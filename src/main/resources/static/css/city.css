@@ -1,0 +1,88 @@
+/* Gradientowe tło */
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #4b6cb7, #182848);
+    font-family: Arial, sans-serif;
+}
+
+/* Kontener dla selekcji sali */
+.select-container {
+    background-color: rgba(255, 255, 255, 0.2); /* Tło z przezroczystością */
+    backdrop-filter: blur(10px); /* Efekt rozmycia */
+    padding: 20px;
+    border-radius: 12px;
+    width: 300px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Styl dla elementu select */
+#hallSelect {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background-color: rgba(255, 255, 255, 0.8);
+    color: #333;
+}
+
+.return-tile {
+    width: calc(220px * 0.67 + 20px * 0.67); /* Zmniejszona szerokość przycisku powrotu o 33% */
+    height: 60px; /* Zmniejszona wysokość */
+    font-size: 16px; /* Mniejsza czcionka */
+    text-align: center; /* Wyśrodkowanie tekstu */
+    margin-top: 20px; /* Odstęp od innych kafelków */
+    background-color: rgba(255, 255, 255, 0.2); /* Tło dopasowane do kafelków */
+    backdrop-filter: blur(10px); /* Efekt rozmycia */
+    border-radius: 12px; /* Zaokrąglone rogi */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    text-decoration: none;
+    transition: transform 0.3s, background-color 0.3s;
+}
+
+/* Efekt najechania na kafelek powrotu */
+.return-tile:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+    transform: scale(1.05);
+}
+
+
+
+
+/* Dostosowanie dla ekranów Full HD i wyższych */
+@media (min-width: 1920px) {
+    .container {
+        gap: 40px; /* Większa odległość między kafelkami */
+    }
+
+    .tile {
+        width: 220px; /* Szerokość kafelków pozostaje taka sama */
+        height: 160px; /* Wysokość kafelków pozostaje taka sama */
+        font-size: 18px; /* Czcionka pozostaje taka sama */
+    }
+}
+
+/* Dostosowanie dla ekranów 4K i wyższych */
+@media (min-width: 2560px) {
+    .container {
+        gap: 50px; /* Jeszcze większa odległość między kafelkami */
+    }
+
+    .tile {
+        width: 220px; /* Szerokość kafelków pozostaje taka sama */
+        height: 160px; /* Wysokość kafelków pozostaje taka sama */
+        font-size: 18px; /* Czcionka pozostaje taka sama */
+    }
+}

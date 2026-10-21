@@ -1,0 +1,96 @@
+/* Gradientowe tło */
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #4b6cb7, #182848);
+    font-family: Arial, sans-serif;
+}
+
+/* Kontener dla kafelków */
+.container {
+    display: flex;
+    flex-wrap: wrap; /* Dostosowanie do większych ekranów */
+    gap: 20px;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* Styl kafelków */
+.tile {
+    width: 220px; /* Standardowa szerokość kafelków */
+    height: 160px; /* Wysokość kafelków */
+    background-color: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+    text-decoration: none;
+    transition: transform 0.3s, background-color 0.3s;
+    text-align: center;
+}
+
+/* Efekt najechania */
+.tile:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+    transform: scale(1.05);
+}
+
+/* Dostosowanie dla ekranów Full HD i wyższych */
+@media (min-width: 1920px) {
+    .container {
+        gap: 40px; /* Większa odległość między kafelkami */
+    }
+
+    .tile {
+        width: 220px; /* Szerokość kafelków pozostaje taka sama */
+        height: 160px; /* Wysokość kafelków pozostaje taka sama */
+        font-size: 18px; /* Czcionka pozostaje taka sama */
+    }
+}
+
+/* Dostosowanie dla ekranów 4K i wyższych */
+@media (min-width: 2560px) {
+    .container {
+        gap: 50px; /* Jeszcze większa odległość między kafelkami */
+    }
+
+    .tile {
+        width: 220px; /* Szerokość kafelków pozostaje taka sama */
+        height: 160px; /* Wysokość kafelków pozostaje taka sama */
+        font-size: 18px; /* Czcionka pozostaje taka sama */
+    }
+}
+
+.return-tile {
+    width: calc(220px * 0.67 + 20px * 0.67); /* Zmniejszona szerokość przycisku powrotu o 33% */
+    height: 60px; /* Zmniejszona wysokość */
+    font-size: 16px; /* Mniejsza czcionka */
+    font-weight: bold; /* Pogrubiona czcionka */
+    text-align: center; /* Wyśrodkowanie tekstu */
+    margin-top: 20px; /* Odstęp od innych kafelków */
+    background-color: rgba(255, 255, 255, 0.2); /* Tło dopasowane do kafelków */
+    backdrop-filter: blur(10px); /* Efekt rozmycia */
+    border-radius: 12px; /* Zaokrąglone rogi */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    text-decoration: none;
+    transition: transform 0.3s, background-color 0.3s;
+}
+
+/* Efekt najechania na kafelek powrotu */
+.return-tile:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+    transform: scale(1.05);
+}
+

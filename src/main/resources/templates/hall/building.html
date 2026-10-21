@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/current-localization.css">
+    <title>Sale w obecnym budynku</title>
+</head>
+<body>
+<!-- Kontener na selekcję sali -->
+<div class="select-container">
+    <h2>Wybierz salę</h2>
+    <label for="hallSelect">Wybierz salę:</label>
+    <select id="hallSelect" onchange="redirectToCalendar()">
+        <option value="">-- Wybierz salę --</option>
+        <option th:each="hall : ${halls}" th:value="${hall.id}"
+                th:text="${(hall.available ? '✔' : '❌') + '  ' + hall.name + '  (' + hall.capacity + '🚶)' }"
+                th:classappend="${hall.available ? 'available' : 'unavailable'}"
+                th:disabled="${!hall.available}">
+        </option>
+    </select>
+</div>
+
+<p>Wybrana sala: <span id="selectedHall">Brak wyboru</span></p>
+
+
+<a th:href="@{/other-localization}" class="return-tile">Powrót</a>
+
+<script>
+    function redirectToCalendar() {
+        let select = document.getElementById("hallSelect");
+        let hallId = select.value;
+        if (hallId) {
+            window.location.href = "/calendar/" + hallId;
+        }
+    }
+</script>
+
+</body>
+</html>

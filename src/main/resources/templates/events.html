@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org">
+<head><title>Events</title></head>
+<body>
+<h2>Eventy użytkownika</h2>
+<ul>
+    <li th:each="event : ${subjects}" th:text="${event.subject}">Subject</li>
+</ul>
+<a th:href="@{/home}">Powrot do strony glownej</a>
+</body>
+</html>
