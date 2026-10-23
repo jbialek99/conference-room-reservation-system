@@ -1,0 +1,129 @@
+name: MySQL Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - feat/booking-recovery-and-demo
+  pull_request:
+
+jobs:
+  integration-tests:
+    name: MySQL Concurrency Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root_password
+          MYSQL_DATABASE: conference_pr6_backup_verify
+          MYSQL_USER: conference_user
+          MYSQL_PASSWORD: change_me
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_root_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+
+    env:
+      TEST_DB_URL: jdbc:mysql://127.0.0.1:3306/conference_pr6_backup_verify
+      TEST_DB_USER: conference_user
+      TEST_DB_PASSWORD: change_me
+      SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/conference_pr6_backup_verify
+      SPRING_DATASOURCE_USERNAME: conference_user
+      SPRING_DATASOURCE_PASSWORD: change_me
+      BOOKING_MODE: demo
+      DEMO_PASSWORD: ci_demo_password_2026
+      BOOKING_RECOVERY_ENABLED: false
+      SPRING_FLYWAY_ENABLED: false
+      SERVER_PORT: 8081
+      AZURE_CLIENT_ID: 00000000-0000-0000-0000-000000000001
+      AZURE_CLIENT_SECRET: ci_placeholder
+      AZURE_TENANT_ID: 00000000-0000-0000-0000-000000000002
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Build application
+        run: mvn -B -DskipTests package
+
+      - name: Generate schema in isolated CI database
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export SPRING_JPA_HIBERNATE_DDL_AUTO=update
+
+          java -jar target/letstry-0.0.1-SNAPSHOT.jar > /tmp/conference-ci.log 2>&1 &
+          APP_PID=$!
+
+          cleanup() {
+            kill "$APP_PID" 2>/dev/null || true
+            wait "$APP_PID" 2>/dev/null || true
+          }
+
+          trap cleanup EXIT
+
+          READY=false
+
+          for i in $(seq 1 60); do
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              cat /tmp/conference-ci.log
+              exit 1
+            fi
+
+            if curl --fail --silent --output /dev/null http://127.0.0.1:8081/login; then
+              READY=true
+              break
+            fi
+
+            sleep 2
+          done
+
+          if [ "$READY" != "true" ]; then
+            cat /tmp/conference-ci.log
+            exit 1
+          fi
+
+          echo "CI database schema initialized"
+
+      - name: Seed isolated test room
+        shell: bash
+        env:
+          MYSQL_CONTAINER: ${{ job.services.mysql.id }}
+        run: |
+          set -euo pipefail
+
+          docker exec -e MYSQL_PWD=change_me "$MYSQL_CONTAINER" \
+            mysql -uconference_user -Dconference_pr6_backup_verify \
+            -e "INSERT INTO halls (name, available) VALUES ('CI Conference Room', 1);"
+
+          docker exec -e MYSQL_PWD=change_me "$MYSQL_CONTAINER" \
+            mysql -uconference_user -Dconference_pr6_backup_verify \
+            -e "SELECT COUNT(*) AS halls FROM halls; SELECT COUNT(*) AS users FROM users;"
+
+      - name: Run real MySQL concurrency test
+        run: mvn -B failsafe:integration-test failsafe:verify
+
+      - name: Upload Failsafe reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mysql-integration-reports
+          path: |
+            target/failsafe-reports/
+            /tmp/conference-ci.log
+          if-no-files-found: ignore
