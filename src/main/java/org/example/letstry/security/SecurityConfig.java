@@ -2,6 +2,7 @@
 package org.example.letstry.security;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.example.letstry.errorHandler.CustomAuthenticationFailureHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
+@ConditionalOnProperty(name = "booking.mode", havingValue = "graph", matchIfMissing = true)
 public class SecurityConfig {
 
     private final CustomAuthenticationFailureHandler customAuthenticationFailureHandler;

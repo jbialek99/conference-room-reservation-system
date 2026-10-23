@@ -1,7 +1,5 @@
 package org.example.letstry.service;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import org.example.letstry.dto.CreateReservationRequest;
 import org.example.letstry.dto.ReservationResult;
 import org.example.letstry.model.Hall;
@@ -11,10 +9,8 @@ import org.example.letstry.model.User;
 import org.example.letstry.repository.ReservationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 
@@ -24,19 +20,18 @@ import static org.mockito.Mockito.*;
 
 class ReservationTransactionTest {
 
-    private EntityManager entityManager;
-    private ReservationRepository repository;
     private ReservationService service;
-    private Hall hall;
+    private BookingReservationTransactionService transactions;
+    private Reservation reservation;
+    private CreateReservationRequest request;
     private User user;
 
     @BeforeEach
     void setUp() {
-        entityManager = mock(EntityManager.class);
-        repository = mock(ReservationRepository.class);
+        transactions = mock(BookingReservationTransactionService.class);
 
         service = spy(new ReservationService(
-                repository,
+                mock(ReservationRepository.class),
                 mock(HallService.class),
                 mock(GraphTokenService.class),
                 WebClient.builder().build(),
@@ -45,129 +40,121 @@ class ReservationTransactionTest {
 
         ReflectionTestUtils.setField(
                 service,
-                "entityManager",
-                entityManager
+                "bookingTransactionService",
+                transactions
         );
-
-        hall = new Hall();
-        hall.setId(7L);
-        hall.setName("Sala Alfa");
-        hall.setAvailable(true);
-        hall.setEmail("room@example.com");
 
         user = new User();
 
-        when(entityManager.find(
-                Hall.class,
-                7L,
-                LockModeType.PESSIMISTIC_WRITE
-        )).thenReturn(hall);
+        Hall hall = new Hall();
+        hall.setId(7L);
+        hall.setName("Sala Alfa");
+        hall.setEmail("room@example.com");
+
+        Instant start = Instant.now().plusSeconds(3600);
+
+        request = new CreateReservationRequest(
+                "Spotkanie",
+                start,
+                start.plusSeconds(3600)
+        );
+
+        reservation = new Reservation();
+        reservation.setId(42L);
+        reservation.setHall(hall);
+        reservation.setUser(user);
+        reservation.setTitle("Spotkanie");
+        reservation.setStartMeeting(start);
+        reservation.setEndMeeting(start.plusSeconds(3600));
+
+        when(transactions.prepare(7L, user, request))
+                .thenReturn(reservation);
     }
 
     @Test
-    void shouldRejectUnknownHall() {
-        when(entityManager.find(
-                Hall.class,
-                7L,
-                LockModeType.PESSIMISTIC_WRITE
-        )).thenReturn(null);
-
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> service.reserve(7L, user, request(), "token")
-        );
-
-        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
-        verify(repository, never()).save(any(Reservation.class));
-    }
-
-    @Test
-    void shouldRejectUnavailableHall() {
-        hall.setAvailable(false);
-
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> service.reserve(7L, user, request(), "token")
-        );
-
-        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
-    }
-
-    @Test
-    void shouldRejectHallWithoutExchange() {
-        hall.setEmail(null);
-
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> service.reserve(7L, user, request(), "token")
-        );
-
-        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
-    }
-
-    @Test
-    void shouldRejectOverlappingReservation() {
-        doReturn(true)
-                .when(service)
-                .isReservedAtThisTime(eq(7L), any(Reservation.class));
-
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> service.reserve(7L, user, request(), "token")
-        );
-
-        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
-
-        verify(service, never()).createOutlookEventForUser(
-                anyString(),
-                any(Reservation.class),
-                any(Hall.class)
-        );
-    }
-
-    @Test
-    void shouldPrepareAndSendReservationToGraph() {
-        doReturn(false)
-                .when(service)
-                .isReservedAtThisTime(eq(7L), any(Reservation.class));
-
+    void shouldSaveResultAfterGraphSuccess() {
         doReturn(ReservationStatus.PENDING)
                 .when(service)
                 .createOutlookEventForUser(
                         eq("token"),
-                        any(Reservation.class),
-                        eq(hall)
+                        same(reservation),
+                        same(reservation.getHall())
                 );
 
         ReservationResult result = service.reserve(
                 7L,
                 user,
-                request(),
+                request,
                 "token"
         );
 
+        assertEquals(42L, result.bookingId());
         assertEquals(ReservationStatus.PENDING, result.status());
 
-        verify(entityManager).find(
-                Hall.class,
-                7L,
-                LockModeType.PESSIMISTIC_WRITE
-        );
+        var order = inOrder(transactions, service);
 
-        verify(service).createOutlookEventForUser(
+        order.verify(transactions).prepare(7L, user, request);
+        order.verify(service).createOutlookEventForUser(
                 eq("token"),
-                any(Reservation.class),
-                eq(hall)
+                same(reservation),
+                same(reservation.getHall())
         );
+        order.verify(transactions).markLinked(42L, reservation);
+
+        verify(transactions, never()).markUncertain(anyLong());
     }
 
-    private CreateReservationRequest request() {
-        Instant start = Instant.now().plusSeconds(3600);
+    @Test
+    void shouldMarkUncertainWhenGraphFails() {
+        doThrow(new GraphIntegrationException("Brak odpowiedzi"))
+                .when(service)
+                .createOutlookEventForUser(
+                        eq("token"),
+                        same(reservation),
+                        same(reservation.getHall())
+                );
 
-        return new CreateReservationRequest(
-                "Spotkanie",
-                start,
-                start.plusSeconds(3600)
+        ReservationUncertainException exception = assertThrows(
+                ReservationUncertainException.class,
+                () -> service.reserve(7L, user, request, "token")
         );
+
+        assertEquals(42L, exception.getBookingId());
+
+        verify(transactions).markUncertain(42L);
+        verify(transactions, never()).markLinked(anyLong(), any());
+    }
+
+    @Test
+    void shouldMarkUncertainWhenFinalDatabaseSaveFails() {
+        doReturn(ReservationStatus.PENDING)
+                .when(service)
+                .createOutlookEventForUser(
+                        eq("token"),
+                        same(reservation),
+                        same(reservation.getHall())
+                );
+
+        doThrow(new IllegalStateException("Database error"))
+                .when(transactions)
+                .markLinked(42L, reservation);
+
+        ReservationUncertainException exception = assertThrows(
+                ReservationUncertainException.class,
+                () -> service.reserve(7L, user, request, "token")
+        );
+
+        assertEquals(42L, exception.getBookingId());
+        verify(transactions).markUncertain(42L);
+    }
+
+    @Test
+    void shouldRejectMissingTokenBeforeDatabaseWrite() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.reserve(7L, user, request, "")
+        );
+
+        verifyNoInteractions(transactions);
     }
 }

@@ -12,6 +12,26 @@ import java.util.Optional;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
 
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying(
+            clearAutomatically = true,
+            flushAutomatically = true
+    )
+    @org.springframework.data.jpa.repository.Query("""
+            update Reservation r
+            set r.integrationState = :uncertain
+            where r.integrationState = :creating
+            and r.date < :cutoff
+            """)
+    int markStaleCreatingReservations(
+            @org.springframework.data.repository.query.Param("creating")
+            org.example.letstry.model.BookingIntegrationState creating,
+            @org.springframework.data.repository.query.Param("uncertain")
+            org.example.letstry.model.BookingIntegrationState uncertain,
+            @org.springframework.data.repository.query.Param("cutoff")
+            Instant cutoff
+    );
+
     List<Reservation> findByHallId(Long hallId);
 
     boolean existsByHallIdAndStatusInAndStartMeetingBeforeAndEndMeetingAfter(
