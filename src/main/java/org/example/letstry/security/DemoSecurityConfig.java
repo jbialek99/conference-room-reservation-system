@@ -39,7 +39,13 @@ public class DemoSecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form.defaultSuccessUrl("/demo", true).permitAll())
-                .logout(logout -> logout.logoutSuccessUrl("/login?logout").permitAll());
+                .logout(logout -> logout
+                        .logoutUrl("/demo/logout")
+                        .logoutSuccessUrl("/login")
+                        .invalidateHttpSession(true)
+                        .clearAuthentication(true)
+                        .deleteCookies("JSESSIONID")
+                        .permitAll());
         return http.build();
     }
 

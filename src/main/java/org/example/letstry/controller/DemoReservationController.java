@@ -52,8 +52,36 @@ public class DemoReservationController {
     }
 
     @GetMapping("/api/reservations/hall/{hallId}")
-    public List<Map<String, Object>> events(@PathVariable Long hallId) {
-        return reservationService.getOutlookReservationsByHall(hallId);
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> events(
+            @PathVariable Long hallId,
+            Authentication authentication
+    ) {
+        User currentUser = identities.resolve(authentication);
+
+        java.util.Set<String> ownedIds = reservationRepository.findByHallId(hallId)
+                .stream()
+                .filter(reservation ->
+                        reservation.getIntegrationState() == BookingIntegrationState.DEMO
+                                && reservation.getUser() != null
+                                && currentUser.getTenantId().equals(
+                                        reservation.getUser().getTenantId()
+                                )
+                                && currentUser.getObjectId().equals(
+                                        reservation.getUser().getObjectId()
+                                )
+                )
+                .map(reservation -> "demo-" + reservation.getId())
+                .collect(java.util.stream.Collectors.toSet());
+
+        return reservationService.getOutlookReservationsByHall(hallId)
+                .stream()
+                .map(event -> {
+                    Map<String, Object> result = new java.util.HashMap<>(event);
+                    result.put("canCancel", ownedIds.contains(event.get("id")));
+                    return result;
+                })
+                .toList();
     }
 
     @PostMapping("/api/reservations/hall/{hallId}/reserve")
