@@ -106,6 +106,7 @@
 <div id="calendar"
      th:data-hall-id="${hall.id}"
      th:data-hall-email="${hall.email}"
+     th:data-graph-enabled="${hall.email != null and !#strings.isEmpty(hall.email)}"
      th:data-user-email="${#authentication.getPrincipal().getAttribute('email')}">
 </div>
 
@@ -116,6 +117,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const calendarEl = document.getElementById('calendar');
         const hallId = calendarEl.dataset.hallId;
+        const graphEnabled = calendarEl.dataset.graphEnabled === 'true';
         const userEmail = calendarEl.dataset.userEmail;
 
         const csrfToken = document.querySelector('meta[name="_csrf"]').content;
@@ -155,9 +157,13 @@
             },
             editable: false,
             selectable: true,
-            events: `/api/reservations/hall/${hallId}`,
+            events: graphEnabled ? `/api/reservations/hall/${hallId}` : [],
 
             dateClick: async info => {
+                if (!graphEnabled) {
+                    alert("Ta sala jest demonstracyjna. Rezerwacje Exchange nie sa jeszcze dostepne.");
+                    return;
+                }
                 const now = new Date();
                 const start = new Date(info.date);
                 const end = new Date(start.getTime() + 60 * 60 * 1000);
@@ -216,13 +222,30 @@
                         return;
                     }
 
+                    let pollCount = 0;
                     let pollInterval = setInterval(async () => {
+                        pollCount++;
+
+                        if (pollCount > 20) {
+                            clearInterval(pollInterval);
+                            loading.remove();
+                            alert("Nie udalo sie potwierdzic statusu. Sprawdz rezerwacje pozniej.");
+                            calendar.refetchEvents();
+                            return;
+                        }
                         const result = await checkreservationStatus(bookingId);
 
                         if (result.error) {
                             clearInterval(pollInterval);
                             document.body.removeChild(loading);
                             alert("❌ Błąd sprawdzania statusu: " + result.error);
+                            return;
+                        }
+
+                        if (result.syncStatus === "FAILED") {
+                            clearInterval(pollInterval);
+                            loading.remove();
+                            alert("Synchronizacja z Outlook jest niedostepna.");
                             return;
                         }
 
