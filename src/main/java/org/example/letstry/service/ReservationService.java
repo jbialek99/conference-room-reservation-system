@@ -8,11 +8,13 @@ import jakarta.persistence.PersistenceContext;
 import org.example.letstry.dto.CreateReservationRequest;
 import org.example.letstry.dto.ReservationResult;
 import org.springframework.http.HttpStatus;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.server.ResponseStatusException;
 import org.example.letstry.model.Hall;
 import org.example.letstry.model.Reservation;
 import org.example.letstry.model.ReservationStatus;
+import org.example.letstry.model.BookingIntegrationState;
 import org.example.letstry.model.User;
 import org.example.letstry.repository.ReservationRepository;
 import org.slf4j.Logger;
@@ -30,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class ReservationService {
@@ -43,8 +46,11 @@ public class ReservationService {
     private final WebClient webClient;
     private final OutlookRoomResponseMapper roomResponseMapper;
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    @Value("${booking.mode:graph}")
+    private String bookingMode = "graph";
+
+    @Autowired
+    private BookingReservationTransactionService bookingTransactionService;
 
     public ReservationService(
             ReservationRepository reservationRepository,
@@ -61,6 +67,30 @@ public class ReservationService {
     }
 
     public List<Map<String, Object>> getOutlookReservationsByHall(Long hallId) {
+        if ("demo".equalsIgnoreCase(bookingMode)) {
+            hallService.findHallById(hallId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Sala nie istnieje: " + hallId
+                    ));
+
+            return reservationRepository.findByHallId(hallId)
+                    .stream()
+                    .filter(reservation ->
+                            reservation.getIntegrationState()
+                                    == org.example.letstry.model.BookingIntegrationState.DEMO
+                                    && reservation.getStatus() != ReservationStatus.REJECTED
+                    )
+                    .map(reservation -> {
+                        Map<String, Object> event = new HashMap<>();
+                        event.put("id", "demo-" + reservation.getId());
+                        event.put("title", reservation.getTitle());
+                        event.put("start", reservation.getStartMeeting().toString());
+                        event.put("end", reservation.getEndMeeting().toString());
+                        event.put("email", "demo");
+                        return event;
+                    })
+                    .toList();
+        }
         Hall hall = hallService.findHallById(hallId)
                 .orElseThrow(() ->
                         new IllegalArgumentException("Sala nie istnieje: " + hallId)
@@ -145,6 +175,11 @@ public class ReservationService {
             throw new IllegalArgumentException("Brak terminu rezerwacji.");
         }
 
+        if (reservation.getGraphTransactionId() == null
+                || reservation.getGraphTransactionId().isBlank()) {
+            throw new IllegalArgumentException("Brak identyfikatora operacji Graph.");
+        }
+
         String start = DateTimeFormatter.ISO_INSTANT
                 .withZone(ZoneOffset.UTC)
                 .format(reservation.getStartMeeting());
@@ -164,6 +199,7 @@ public class ReservationService {
                 : organizerName + ": " + reservation.getTitle();
 
         Map<String, Object> event = Map.of(
+                "transactionId", reservation.getGraphTransactionId(),
                 "subject", title,
                 "body", Map.of(
                         "contentType", "HTML",
@@ -250,10 +286,9 @@ public class ReservationService {
 
         reservation.setTitle(title);
         reservation.setOutlookEventId(eventId);
+        reservation.setIntegrationState(BookingIntegrationState.LINKED);
         reservation.setOrganizerEmail(organizerEmail);
         reservation.setStatus(status);
-
-        reservationRepository.save(reservation);
 
         logger.info(
                 "Zapisano wydarzenie Outlook dla rezerwacji {} ze statusem {}.",
@@ -341,74 +376,62 @@ public class ReservationService {
         }
     }
 
-    @Transactional
     public ReservationResult reserve(
             Long hallId,
             User user,
             CreateReservationRequest request,
             String accessToken
     ) {
-        if (hallId == null || user == null || request == null) {
-            throw new IllegalArgumentException("Nieprawidlowe dane rezerwacji.");
+        if ("demo".equalsIgnoreCase(bookingMode)) {
+            Reservation reservation = bookingTransactionService.reserveDemo(
+                    hallId,
+                    user,
+                    request
+            );
+
+            return new ReservationResult(
+                    reservation.getId(),
+                    reservation.getStatus()
+            );
         }
 
-        if (request.startMeeting() == null
-                || request.endMeeting() == null
-                || !request.endMeeting().isAfter(request.startMeeting())
-                || !request.startMeeting().isAfter(Instant.now())
-                || request.title() == null
-                || request.title().isBlank()) {
-            throw new IllegalArgumentException("Nieprawidlowy termin lub tytul.");
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new IllegalArgumentException("Brak tokenu Microsoft Graph.");
         }
 
-        Hall hall = entityManager.find(
-                Hall.class,
+        Reservation reservation = bookingTransactionService.prepare(
                 hallId,
-                LockModeType.PESSIMISTIC_WRITE
+                user,
+                request
         );
 
-        if (hall == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Nie znaleziono sali."
+        long bookingId = reservation.getId();
+
+        ReservationStatus status;
+
+        try {
+            status = createOutlookEventForUser(
+                    accessToken,
+                    reservation,
+                    reservation.getHall()
             );
+        } catch (GraphIntegrationException exception) {
+            bookingTransactionService.markUncertain(bookingId);
+            throw new ReservationUncertainException(bookingId, exception);
         }
 
-        if (!hall.isAvailable()) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Sala jest niedostepna."
-            );
+        try {
+            bookingTransactionService.markLinked(bookingId, reservation);
+        } catch (RuntimeException exception) {
+            try {
+                bookingTransactionService.markUncertain(bookingId);
+            } catch (RuntimeException recoveryException) {
+                exception.addSuppressed(recoveryException);
+            }
+            throw new ReservationUncertainException(bookingId, exception);
         }
 
-        if (hall.getEmail() == null || hall.getEmail().isBlank()) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Sala nie posiada kalendarza Exchange."
-            );
-        }
-
-        Reservation reservation = new Reservation();
-        reservation.setTitle(request.title().trim());
-        reservation.setStartMeeting(request.startMeeting());
-        reservation.setEndMeeting(request.endMeeting());
-
-        if (isReservedAtThisTime(hallId, reservation)) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Sala jest juz zarezerwowana w tym terminie."
-            );
-        }
-
-        createReservation(hall, user, reservation);
-
-        ReservationStatus status = createOutlookEventForUser(
-                accessToken,
-                reservation,
-                hall
-        );
-
-        return new ReservationResult(reservation.getId(), status);
+        return new ReservationResult(bookingId, status);
     }
     public boolean isReservedAtThisTime(Long hallId, Reservation reservation) {
         if (hallId == null || reservation == null
@@ -442,6 +465,8 @@ public class ReservationService {
         reservation.setUser(user);
         reservation.setDate(Instant.now());
         reservation.setStatus(ReservationStatus.PENDING);
+        reservation.setIntegrationState(BookingIntegrationState.CREATING);
+        reservation.setGraphTransactionId(UUID.randomUUID().toString());
     }
 
     public Optional<Reservation> findByOutlookEventId(String eventId) {

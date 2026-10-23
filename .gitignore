@@ -35,3 +35,10 @@ build/
 .env
 .env.*
 !.env.example
+/backups/
+/demo-security-review.txt
+/step_15_17_demo.ps1
+/.env
+/.env.local
+/.env.demo
+/security-final-review.txt

@@ -4,6 +4,7 @@ package org.example.letstry.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.example.letstry.model.Reservation;
 import org.example.letstry.model.ReservationStatus;
+import org.example.letstry.model.BookingIntegrationState;
 import org.example.letstry.repository.ReservationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,6 +110,21 @@ public class BookingStatusSyncService {
         String eventId = reservation.getOutlookEventId();
 
         if (eventId == null || eventId.isBlank()) {
+            BookingIntegrationState integrationState =
+                    reservation.getIntegrationState();
+
+            if (integrationState == BookingIntegrationState.CREATING) {
+                return buildResponse(reservation, "CREATING");
+            }
+
+            if (integrationState == BookingIntegrationState.UNCERTAIN) {
+                return buildResponse(reservation, "UNCERTAIN");
+            }
+
+            if (integrationState == BookingIntegrationState.DEMO) {
+                return buildResponse(reservation, "LOCAL");
+            }
+
             return buildResponse(reservation, "FAILED");
         }
 
@@ -160,6 +176,13 @@ public class BookingStatusSyncService {
 
         response.put("status", reservation.getStatus().name());
         response.put("syncStatus", syncStatus);
+
+        if (reservation.getIntegrationState() != null) {
+            response.put(
+                    "integrationState",
+                    reservation.getIntegrationState().name()
+            );
+        }
 
         Instant lastSynchronizedAt =
                 reservation.getLastSynchronizedAt();

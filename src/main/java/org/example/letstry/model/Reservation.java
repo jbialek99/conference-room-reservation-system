@@ -23,6 +23,13 @@ public class Reservation {
 
     private String outlookEventId;
 
+    @Column(name = "graph_transaction_id", unique = true, length = 36)
+    private String graphTransactionId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "integration_state", length = 32)
+    private BookingIntegrationState integrationState;
+
     private String organizerEmail;
 
     private String description;
@@ -65,6 +72,21 @@ public class Reservation {
         return outlookEventId;
     }
 
+    public String getGraphTransactionId() {
+        return graphTransactionId;
+    }
+
+    public void setGraphTransactionId(String graphTransactionId) {
+        this.graphTransactionId = graphTransactionId;
+    }
+
+    public BookingIntegrationState getIntegrationState() {
+        return integrationState;
+    }
+
+    public void setIntegrationState(BookingIntegrationState integrationState) {
+        this.integrationState = integrationState;
+    }
     public String getOrganizerEmail() {
         return organizerEmail;
     }

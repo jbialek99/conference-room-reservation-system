@@ -2,14 +2,17 @@
 package org.example.letstry.controller;
 
 import jakarta.validation.Valid;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.example.letstry.dto.CreateReservationRequest;
 import org.example.letstry.dto.ReservationResult;
 import org.example.letstry.model.Hall;
 import org.example.letstry.model.Reservation;
 import org.example.letstry.model.ReservationStatus;
+import org.example.letstry.model.BookingIntegrationState;
 import org.example.letstry.model.User;
 import org.example.letstry.repository.ReservationRepository;
 import org.example.letstry.service.GraphIntegrationException;
+import org.example.letstry.service.ReservationUncertainException;
 import org.example.letstry.service.HallService;
 import org.example.letstry.service.ReservationService;
 import org.example.letstry.service.UserService;
@@ -27,6 +30,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @RestController
+@ConditionalOnProperty(name = "booking.mode", havingValue = "graph", matchIfMissing = true)
 @RequestMapping("/api/reservations")
 public class ReservationController {
 
@@ -99,6 +103,13 @@ public class ReservationController {
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Nieprawidlowe dane rezerwacji."));
+        } catch (ReservationUncertainException exception) {
+            return ResponseEntity.status(202)
+                    .body(Map.of(
+                            "bookingId", exception.getBookingId(),
+                            "status", "PENDING",
+                            "integrationState", "UNCERTAIN"
+                    ));
         } catch (GraphIntegrationException exception) {
             return ResponseEntity.status(502)
                     .body(Map.of("error", "Microsoft Graph nie potwierdzil utworzenia wydarzenia."));
@@ -127,16 +138,49 @@ public class ReservationController {
                     .body("Nie można zweryfikować tożsamości użytkownika.");
         }
 
-        Optional<Reservation> reservation = reservationRepository
-                .findByOutlookEventIdAndUser_TenantIdAndUser_ObjectId(
-                        eventId,
-                        tenantId,
-                        objectId
-                );
+        Optional<Reservation> reservation;
+
+        if (eventId.startsWith("demo-")) {
+            Long localId;
+
+            try {
+                localId = Long.parseLong(eventId.substring(5));
+            } catch (NumberFormatException exception) {
+                return ResponseEntity.status(404)
+                        .body("Nieprawidlowy identyfikator rezerwacji.");
+            }
+
+            reservation = reservationRepository
+                    .findByIdAndUser_TenantIdAndUser_ObjectId(
+                            localId,
+                            tenantId,
+                            objectId
+                    );
+        } else {
+            reservation = reservationRepository
+                    .findByOutlookEventIdAndUser_TenantIdAndUser_ObjectId(
+                            eventId,
+                            tenantId,
+                            objectId
+                    );
+        }
 
         if (reservation.isEmpty()) {
             return ResponseEntity.status(404)
                     .body("Nie znaleziono rezerwacji lub brak uprawnień.");
+        }
+
+        if (eventId.startsWith("demo-")) {
+            Reservation localReservation = reservation.get();
+
+            if (localReservation.getIntegrationState() != BookingIntegrationState.DEMO
+                    || !eventId.equals("demo-" + localReservation.getId())) {
+                return ResponseEntity.status(404)
+                        .body("Nie znaleziono rezerwacji DEMO.");
+            }
+
+            reservationRepository.delete(localReservation);
+            return ResponseEntity.ok("Rezerwacja DEMO zostala anulowana.");
         }
 
         String token = authorizedClient.getAccessToken().getTokenValue();
