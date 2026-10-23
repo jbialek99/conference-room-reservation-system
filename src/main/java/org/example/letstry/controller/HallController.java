@@ -27,7 +27,7 @@ public class HallController {
 
     @GetMapping("/localization")
     public String chooseHallLocalization() {
-        return "/hall/localization";
+        return "hall/localization";
     }
 
 
@@ -35,7 +35,7 @@ public class HallController {
     public String getLocalization(Model model) {
         List<Localization> localizations = buildingService.getBuildings();
         model.addAttribute("localizations", localizations);
-        return "/hall/other-localization";
+        return "hall/other-localization";
     }
 
     @GetMapping("/here")
@@ -43,14 +43,14 @@ public class HallController {
         Long buildingId = 101L;
         List<Hall> halls = hallService.getBuildingHalls(buildingId);
         model.addAttribute("halls", halls);
-        return "/hall/here";
+        return "hall/here";
     }
 
     @GetMapping("/city")
     public String showCities(Model model) {
         List<Localization> localizations = localizationService.getLocalizations();
         model.addAttribute("localizations", localizations);
-        return "/hall/city";
+        return "hall/city";
     }
 
     @GetMapping("/building/{id}")
@@ -58,7 +58,7 @@ public class HallController {
                                     Model model) {
         List<Hall> halls = hallService.getBuildingHalls(id);
         model.addAttribute("halls", halls);
-        return "/hall/building";
+        return "hall/building";
     }
 
     @GetMapping("/calendar/{hallId}")
@@ -70,10 +70,10 @@ public class HallController {
             model.addAttribute("hall", hall.get());
         } else {
             model.addAttribute("error", "Sala nie została znaleziona.");
-            return "/error/error1";
+            return "error/error1";
         }
 
-        return "/hall/calendar";
+        return "hall/calendar";
     }
 }
 
