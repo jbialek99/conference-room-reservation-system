@@ -15,7 +15,7 @@
 
     <div class="tiles-wrapper">
         <div class="tiles-grid">
-            <a th:href="@{'/calendar/' + ${defaultHallId}}" class="tile">Kalendarz sali</a>
+            <a th:href="@{/calendar}" class="tile">Kalendarz sali</a>
             <a th:href="@{/localization}" class="tile">Wybór sali</a>
             <a th:href="@{/logout}" sec:authorize="isAuthenticated()" class="tile">Wyloguj</a>
             <a th:href="@{/oauth2/authorization/azure}" sec:authorize="isAnonymous()" class="tile">Zaloguj</a>

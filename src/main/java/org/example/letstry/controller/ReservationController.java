@@ -83,6 +83,11 @@ public class ReservationController {
 
             Hall hall = hallOptional.get();
 
+            if (hall.getEmail() == null || hall.getEmail().isBlank()) {
+                return ResponseEntity.status(409)
+                        .body(Map.of("error", "Sala nie posiada skonfigurowanego kalendarza Exchange."));
+            }
+
             Reservation reservation = new Reservation();
             reservation.setTitle(request.title().trim());
             reservation.setStartMeeting(request.startMeeting());

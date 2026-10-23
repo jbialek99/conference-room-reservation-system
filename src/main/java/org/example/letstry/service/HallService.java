@@ -19,10 +19,7 @@ public class HallService {
     this.buildingRepository = buildingRepository;
     }
 // ZMIANA!
-    public List<Hall> getHalls(){
-        Optional<Building> building = buildingRepository.findById(1L);
-        return building.map(hallRepository::findByBuilding).orElse(List.of());
-    }
+    public List<Hall> getHalls() { return hallRepository.findAll(); }
 
     public List<Hall> getBuildingHalls(Long buildingId){
         Optional<Building> building = buildingRepository.findById(buildingId);

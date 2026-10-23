@@ -56,6 +56,10 @@ public class ReservationService {
                 );
 
         String hallEmail = hall.getEmail();
+
+        if (hallEmail == null || hallEmail.isBlank()) {
+            return List.of();
+        }
         String accessToken = graphTokenService.getAppAccessToken();
 
         List<Map<String, Object>> events = new ArrayList<>();
