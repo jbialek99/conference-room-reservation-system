@@ -19,7 +19,7 @@ public class MenuController {
 
     @GetMapping("/welcome")
     public String welcome() {
-        return "/menu/welcome";
+        return "menu/welcome";
     }
 
     @GetMapping("/home")
@@ -33,7 +33,7 @@ public class MenuController {
         hallService.findByEmail("sala1@bucikbialekgmail.onmicrosoft.com").ifPresent(hall ->
                 model.addAttribute("defaultHallId", hall.getId()));
 
-        return "/menu/home";
+        return "menu/home";
     }
 
 
