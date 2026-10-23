@@ -5,10 +5,9 @@
 
 /* Blokada scrolla i zoomu na mobilkach */
 html, body {
-    overflow: hidden;        /* wyłącza scrollowanie w pionie i poziomie */
-    height: 100vh;           /* pełna wysokość viewportu */
-    touch-action: none;      /* blokuje gesty przesuwania i powiększania */
-    -ms-touch-action: none;  /* dla IE/Edge */
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
     margin: 0;
     padding: 0;
 }

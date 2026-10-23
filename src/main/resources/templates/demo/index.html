@@ -1,0 +1,14 @@
+<!doctype html>
+                <html lang="pl" xmlns:th="http://www.thymeleaf.org"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+                <meta name="csrf-token" th:content="${_csrf.token}"><title>Conference - Demo</title>
+                <link rel="stylesheet" href="/css/demo.css"></head><body>
+                <h1>Conference Room Reservation - DEMO</h1><p>Tryb lokalny, bez Microsoft Graph. Konta: demo1 / demo2. Haslo ustawia administrator lokalnego DEMO.</p>
+                <form method="post" action="/logout"><input type="hidden" name="_csrf" th:value="${_csrf.token}"><button>Wyloguj</button></form>
+                <section><h2>Nowa rezerwacja</h2>
+                <label for="hall">Sala</label><select id="hall"></select>
+                <label for="title">Tytul</label><input id="title" value="Spotkanie demonstracyjne">
+                <label for="start">Od</label><input id="start" type="datetime-local">
+                <label for="end">Do</label><input id="end" type="datetime-local">
+                <div><button id="reserve">Zarezerwuj</button><button id="refresh">Odswiez kalendarz</button></div></section>
+                <section><h2>Rezerwacje sali</h2><ul id="events"></ul></section><section><h2>Status</h2><pre id="message"></pre></section>
+                <script src="/js/demo.js"></script></body></html>

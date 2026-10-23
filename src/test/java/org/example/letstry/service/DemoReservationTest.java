@@ -127,12 +127,13 @@ class DemoReservationTest {
 
     @Test
     void shouldRejectConflictingDemoReservation() {
-        when(repository.existsByHallIdAndStatusInAndStartMeetingBeforeAndEndMeetingAfter(
+        when(repository.existsByHallIdAndStatusInAndIntegrationStateAndStartMeetingBeforeAndEndMeetingAfter(
                 eq(7L),
                 eq(List.of(
                         ReservationStatus.PENDING,
                         ReservationStatus.CONFIRMED
                 )),
+                eq(BookingIntegrationState.DEMO),
                 any(Instant.class),
                 any(Instant.class)
         )).thenReturn(true);
@@ -145,6 +146,36 @@ class DemoReservationTest {
         verify(repository, never()).saveAndFlush(any());
     }
 
+    @Test
+    void shouldCheckOnlyDemoReservationsForConflicts() {
+        Reservation reservation = transactions.reserveDemo(
+                7L,
+                user,
+                request()
+        );
+
+        assertEquals(ReservationStatus.CONFIRMED, reservation.getStatus());
+
+        verify(repository)
+                .existsByHallIdAndStatusInAndIntegrationStateAndStartMeetingBeforeAndEndMeetingAfter(
+                        eq(7L),
+                        eq(List.of(
+                                ReservationStatus.PENDING,
+                                ReservationStatus.CONFIRMED
+                        )),
+                        eq(BookingIntegrationState.DEMO),
+                        any(Instant.class),
+                        any(Instant.class)
+                );
+
+        verify(repository, never())
+                .existsByHallIdAndStatusInAndStartMeetingBeforeAndEndMeetingAfter(
+                        anyLong(),
+                        anyList(),
+                        any(Instant.class),
+                        any(Instant.class)
+                );
+    }
     @Test
     void shouldRejectUnavailableHall() {
         hall.setAvailable(false);

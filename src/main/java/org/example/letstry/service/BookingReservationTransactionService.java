@@ -83,16 +83,31 @@ public class BookingReservationTransactionService {
             );
         }
 
-        boolean occupied = reservationRepository
-                .existsByHallIdAndStatusInAndStartMeetingBeforeAndEndMeetingAfter(
-                        hallId,
-                        List.of(
-                                ReservationStatus.PENDING,
-                                ReservationStatus.CONFIRMED
-                        ),
-                        request.endMeeting(),
-                        request.startMeeting()
-                );
+        List<ReservationStatus> blockingStatuses = List.of(
+                ReservationStatus.PENDING,
+                ReservationStatus.CONFIRMED
+        );
+
+        boolean occupied;
+
+        if ("demo".equalsIgnoreCase(bookingMode)) {
+            occupied = reservationRepository
+                    .existsByHallIdAndStatusInAndIntegrationStateAndStartMeetingBeforeAndEndMeetingAfter(
+                            hallId,
+                            blockingStatuses,
+                            BookingIntegrationState.DEMO,
+                            request.endMeeting(),
+                            request.startMeeting()
+                    );
+        } else {
+            occupied = reservationRepository
+                    .existsByHallIdAndStatusInAndStartMeetingBeforeAndEndMeetingAfter(
+                            hallId,
+                            blockingStatuses,
+                            request.endMeeting(),
+                            request.startMeeting()
+                    );
+        }
 
         if (occupied) {
             throw new ResponseStatusException(

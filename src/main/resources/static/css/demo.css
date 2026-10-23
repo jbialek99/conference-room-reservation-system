@@ -1,0 +1,5 @@
+body{font:16px system-ui,sans-serif;max-width:850px;margin:45px auto;padding:0 20px;color:#172331;background:#f8fafc}
+                h1{margin-bottom:8px}p{color:#536273}section{background:white;padding:24px;margin-top:18px;border:1px solid #dce2e8;border-radius:12px}
+                label{display:block;margin:13px 0 5px}input,select,button{font:inherit;padding:10px;border:1px solid #c5cdd7;border-radius:7px}
+                input,select{max-width:100%;box-sizing:border-box}button{background:#172331;color:white;cursor:pointer;margin:12px 6px 0 0}
+                li{margin:10px 0}#message{white-space:pre-wrap} .danger{background:#842c3a}

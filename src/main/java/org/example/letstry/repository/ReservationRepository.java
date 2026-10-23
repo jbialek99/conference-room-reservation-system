@@ -41,6 +41,14 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Instant start
     );
 
+    boolean existsByHallIdAndStatusInAndIntegrationStateAndStartMeetingBeforeAndEndMeetingAfter(
+            Long hallId,
+            List<ReservationStatus> statuses,
+            org.example.letstry.model.BookingIntegrationState integrationState,
+            Instant end,
+            Instant start
+    );
+
     Optional<Reservation> findByOutlookEventId(String outlookEventId);
 
     Optional<Reservation> findByOutlookEventIdAndUser_TenantIdAndUser_ObjectId(
