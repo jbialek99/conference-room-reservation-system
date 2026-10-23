@@ -2,6 +2,7 @@
 package org.example.letstry.repository;
 
 import org.example.letstry.model.Reservation;
+import org.example.letstry.model.ReservationStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -13,8 +14,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findByHallId(Long hallId);
 
-    List<Reservation> findByHallIdAndStartMeetingBeforeAndEndMeetingAfter(
+    boolean existsByHallIdAndStatusInAndStartMeetingBeforeAndEndMeetingAfter(
             Long hallId,
+            List<ReservationStatus> statuses,
             Instant end,
             Instant start
     );

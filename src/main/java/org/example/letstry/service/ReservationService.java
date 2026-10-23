@@ -2,6 +2,14 @@
 package org.example.letstry.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.PersistenceContext;
+import org.example.letstry.dto.CreateReservationRequest;
+import org.example.letstry.dto.ReservationResult;
+import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import org.example.letstry.model.Hall;
 import org.example.letstry.model.Reservation;
 import org.example.letstry.model.ReservationStatus;
@@ -34,6 +42,9 @@ public class ReservationService {
     private final GraphTokenService graphTokenService;
     private final WebClient webClient;
     private final OutlookRoomResponseMapper roomResponseMapper;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public ReservationService(
             ReservationRepository reservationRepository,
@@ -199,14 +210,14 @@ public class ReservationService {
                     exception
             );
 
-            throw new IllegalStateException(
+            throw new GraphIntegrationException(
                     "Nie udało się potwierdzić utworzenia wydarzenia w Microsoft Graph.",
                     exception
             );
         }
 
         if (response == null) {
-            throw new IllegalStateException(
+            throw new GraphIntegrationException(
                     "Microsoft Graph nie zwrócił danych utworzonego wydarzenia."
             );
         }
@@ -214,7 +225,7 @@ public class ReservationService {
         String eventId = response.path("id").asText("");
 
         if (eventId.isBlank()) {
-            throw new IllegalStateException(
+            throw new GraphIntegrationException(
                     "Microsoft Graph nie zwrócił identyfikatora wydarzenia."
             );
         }
@@ -330,30 +341,107 @@ public class ReservationService {
         }
     }
 
-    public boolean isReservedAtThisTime(
+    @Transactional
+    public ReservationResult reserve(
             Long hallId,
-            Reservation reservation
+            User user,
+            CreateReservationRequest request,
+            String accessToken
     ) {
-        return !reservationRepository
-                .findByHallIdAndStartMeetingBeforeAndEndMeetingAfter(
+        if (hallId == null || user == null || request == null) {
+            throw new IllegalArgumentException("Nieprawidlowe dane rezerwacji.");
+        }
+
+        if (request.startMeeting() == null
+                || request.endMeeting() == null
+                || !request.endMeeting().isAfter(request.startMeeting())
+                || !request.startMeeting().isAfter(Instant.now())
+                || request.title() == null
+                || request.title().isBlank()) {
+            throw new IllegalArgumentException("Nieprawidlowy termin lub tytul.");
+        }
+
+        Hall hall = entityManager.find(
+                Hall.class,
+                hallId,
+                LockModeType.PESSIMISTIC_WRITE
+        );
+
+        if (hall == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Nie znaleziono sali."
+            );
+        }
+
+        if (!hall.isAvailable()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Sala jest niedostepna."
+            );
+        }
+
+        if (hall.getEmail() == null || hall.getEmail().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Sala nie posiada kalendarza Exchange."
+            );
+        }
+
+        Reservation reservation = new Reservation();
+        reservation.setTitle(request.title().trim());
+        reservation.setStartMeeting(request.startMeeting());
+        reservation.setEndMeeting(request.endMeeting());
+
+        if (isReservedAtThisTime(hallId, reservation)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Sala jest juz zarezerwowana w tym terminie."
+            );
+        }
+
+        createReservation(hall, user, reservation);
+
+        ReservationStatus status = createOutlookEventForUser(
+                accessToken,
+                reservation,
+                hall
+        );
+
+        return new ReservationResult(reservation.getId(), status);
+    }
+    public boolean isReservedAtThisTime(Long hallId, Reservation reservation) {
+        if (hallId == null || reservation == null
+                || reservation.getStartMeeting() == null
+                || reservation.getEndMeeting() == null
+                || !reservation.getEndMeeting().isAfter(reservation.getStartMeeting())) {
+            throw new IllegalArgumentException("Nieprawidlowy termin rezerwacji.");
+        }
+
+        return reservationRepository
+                .existsByHallIdAndStatusInAndStartMeetingBeforeAndEndMeetingAfter(
                         hallId,
+                        List.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED),
                         reservation.getEndMeeting(),
                         reservation.getStartMeeting()
-                )
-                .isEmpty();
+                );
     }
 
-    public void createReservation(
-            Hall hall,
-            User user,
-            Reservation reservation
-    ) {
+    public void createReservation(Hall hall, User user, Reservation reservation) {
+        if (hall == null || user == null || reservation == null) {
+            throw new IllegalArgumentException("Brak danych rezerwacji.");
+        }
+
+        if (reservation.getStartMeeting() == null
+                || reservation.getEndMeeting() == null
+                || !reservation.getEndMeeting().isAfter(reservation.getStartMeeting())) {
+            throw new IllegalArgumentException("Nieprawidlowy termin rezerwacji.");
+        }
+
         reservation.setHall(hall);
         reservation.setUser(user);
         reservation.setDate(Instant.now());
         reservation.setStatus(ReservationStatus.PENDING);
-
-        reservationRepository.save(reservation);
     }
 
     public Optional<Reservation> findByOutlookEventId(String eventId) {

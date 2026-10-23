@@ -3,15 +3,18 @@ package org.example.letstry.controller;
 
 import jakarta.validation.Valid;
 import org.example.letstry.dto.CreateReservationRequest;
+import org.example.letstry.dto.ReservationResult;
 import org.example.letstry.model.Hall;
 import org.example.letstry.model.Reservation;
 import org.example.letstry.model.ReservationStatus;
 import org.example.letstry.model.User;
 import org.example.letstry.repository.ReservationRepository;
+import org.example.letstry.service.GraphIntegrationException;
 import org.example.letstry.service.HallService;
 import org.example.letstry.service.ReservationService;
 import org.example.letstry.service.UserService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
@@ -74,45 +77,34 @@ public class ReservationController {
         try {
             User user = userService.createUserIfNotExists(principal);
 
-            Optional<Hall> hallOptional = hallService.findHallById(hallId);
-
-            if (hallOptional.isEmpty()) {
-                return ResponseEntity.status(404)
-                        .body(Map.of("error", "Nie znaleziono wskazanej sali."));
-            }
-
-            Hall hall = hallOptional.get();
-
-            if (hall.getEmail() == null || hall.getEmail().isBlank()) {
-                return ResponseEntity.status(409)
-                        .body(Map.of("error", "Sala nie posiada skonfigurowanego kalendarza Exchange."));
-            }
-
-            Reservation reservation = new Reservation();
-            reservation.setTitle(request.title().trim());
-            reservation.setStartMeeting(request.startMeeting());
-            reservation.setEndMeeting(request.endMeeting());
-
-            if (reservationService.isReservedAtThisTime(hallId, reservation)) {
-                return ResponseEntity.status(409)
-                        .body(Map.of("error", "Sala jest już zarezerwowana w podanym czasie."));
-            }
-
-            reservationService.createReservation(hall, user, reservation);
-
-            ReservationStatus status = reservationService.createOutlookEventForUser(
-                    accessToken,
-                    reservation,
-                    hall
+            ReservationResult result = reservationService.reserve(
+                    hallId,
+                    user,
+                    request,
+                    accessToken
             );
 
             return ResponseEntity.ok(Map.of(
-                    "bookingId", reservation.getId(),
-                    "status", status.name()
+                    "bookingId", result.bookingId(),
+                    "status", result.status().name()
             ));
+        } catch (ResponseStatusException exception) {
+            return ResponseEntity.status(exception.getStatusCode())
+                    .body(Map.of(
+                            "error",
+                            exception.getReason() == null
+                                    ? "Nie udalo sie utworzyc rezerwacji."
+                                    : exception.getReason()
+                    ));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Nieprawidlowe dane rezerwacji."));
+        } catch (GraphIntegrationException exception) {
+            return ResponseEntity.status(502)
+                    .body(Map.of("error", "Microsoft Graph nie potwierdzil utworzenia wydarzenia."));
         } catch (Exception exception) {
             return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Nie udało się utworzyć rezerwacji."));
+                    .body(Map.of("error", "Nie udalo sie utworzyc rezerwacji."));
         }
     }
 
